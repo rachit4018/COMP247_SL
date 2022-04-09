@@ -195,3 +195,107 @@ def knnModel():
 
 
 knnModel()
+# =============================================================================
+# Support Vector Machine - Rachit Pandya - 301198260
+# =============================================================================
+def SVMModel():
+    drop_column = ['OBJECTID', 'X', 'Y', 'event_unique_id', 'City',
+               'Location_Type', 'NeighbourhoodName', 'Latitude', 'Longitude', 'OBJECTID_1']
+
+    data = pd.read_csv("J:\Centennial Stuff\Sem2\Supervised Learning\Project_Jayesh\Bicycle_Thefts.csv")
+
+    X1 = data['Bike_Model']
+
+    Y1 = data['Status']
+
+    data.drop(drop_column, axis=1, inplace=True)
+# Neighbourhood is identical with Hood ID
+    data.rename(columns={'Hood ID': 'Neighbourhood'}, inplace=True)
+
+
+    data['Occurrence_Date'] = pd.to_datetime(
+    data['Occurrence_Date']).dt.time  # change data type
+    data['Bike_Colour'].fillna('other', inplace=True)  # fill nan value
+    data['Cost_of_Bike'].replace(0, np.nan, inplace=True)  # zero is also invalid
+
+    unknown_make = ['UK', 'NULL', 'UNKNOWN MAKE', 'UNKNOWN', 'NONE', 'NO', 'UNKNOWNN',
+                'UNKONWN', 'UNKOWN', 'UNKNONW', '-', 'UNKNOW', 'NO NAME', '?']  # all typos stand for known
+    giant = data['Bike_Make'][data['Bike_Make'].str.contains(
+     'giant', case=False, na=False)].unique().tolist()  # alias of giant
+    giant.append('GI')
+
+    data['Bike_Make'].replace(giant, 'GIANT', inplace=True)
+    data['Bike_Make'].replace('OT', 'OTHER', inplace=True)
+    data['Bike_Make'].replace(unknown_make, np.nan, inplace=True)
+
+# transform non-numeric data
+    encoder = preprocessing.LabelEncoder()
+    data['Bike_Type'] = encoder.fit_transform(
+    data['Bike_Type'])  # only numerical values for KNNImputer
+    data['Bike_Make'] = pd.Series(encoder.fit_transform(data['Bike_Make'][data['Bike_Make'].notna(
+    )]), index=data['Bike_Make'][data['Bike_Make'].notna()].index)  # only numerical values for KNNImputer
+    data[['Bike_Type', 'Bike_Speed', 'Cost_of_Bike']] = KNNImputer(
+    ).fit_transform(data[['Bike_Type', 'Bike_Speed', 'Cost_of_Bike']])
+    data[['Bike_Type', 'Bike_Speed', 'Bike_Make']] = KNNImputer(
+    ).fit_transform(data[['Bike_Type', 'Bike_Speed', 'Bike_Make']])
+
+# Convert cost to cost catagory
+    low = data['Cost_of_Bike'].quantile(.25)
+    average = data['Cost_of_Bike'].quantile(.5)
+    high = data['Cost_of_Bike'].quantile(.75)
+    data['cost_catag'] = np.where(data['Cost_of_Bike'] <= low, 'low', np.where((data['Cost_of_Bike'] > low) & (
+    data['Cost_of_Bike'] <= average), 'average', np.where((data['Cost_of_Bike'] > average) & (data['Cost_of_Bike'] <= high), 'high', 'luxury')))
+
+# upcycling of data
+    data['Status'].replace('STOLEN', 0, inplace=True)
+    data['Status'].replace(['UNKNOWN', 'RECOVERED'], 1, inplace=True)
+
+    print(data.head())
+
+# encoding categorical features
+    categorical_cols = [col for col in data.columns if data[col].dtype == 'object']
+    for col in categorical_cols:
+      data[col] = encoder.fit_transform(data[col])
+    X, Y = data.drop('Status', axis=1), data['Status']
+    x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=.2)
+
+# SVM Model
+    imp = SimpleImputer(missing_values=np.nan, strategy='median')
+    scaler = StandardScaler()
+
+# Combining the two transformers into a pipeline
+    num_pipe_rachit = Pipeline([('Si', imp),
+                            ('scalar', scaler)])
+# transformer_rachit = ColumnTransformer([('encoder', OneHotEncoder(handle_unknown='ignore'), categorical_cols)], remainder='passthrough')
+
+    model = SVC(kernel='rbf')
+    # model_rbf = SVC(kernel='rbf')
+    # model_sigmoid = SVC(kernel='sigmoid')
+    ###########################pipeline######################
+    pipe_svm_rachit = Pipeline([
+        ("scaler", num_pipe_rachit),
+        ("svc", model)])
+    # pipe_svm1_rachit  = Pipeline([
+    #        ("transformer", transformer_rachit),
+    #        ("svc", SVC(kernel='rbf'))])
+    # pipe_svm2_rachit  = Pipeline([
+    #          ("transformer", transformer_rachit),
+    #        ("svc", SVC(kernel='sigmoid'))])
+
+########################### train test split########################
+    X_train_rachit, X_test_rachit, Y_train_rachit, Y_test_rachit = train_test_split(
+    X, Y, test_size=0.2, random_state=60)
+    train_pipeline = pipe_svm_rachit.fit(X_train_rachit, Y_train_rachit)
+    #test_pipeline = pipe_svm_rachit.fit(X_test_rachit, Y_test_rachit)
+
+
+    Y_train_predict = pipe_svm_rachit.predict(X_train_rachit)
+    train_accuracy = accuracy_score(Y_train_rachit, Y_train_predict)
+    print("accuracy on training data is", train_accuracy)
+    f1_sc = f1_score(Y_train_rachit, Y_train_predict, average='macro')
+    print(confusion_matrix(Y_train_rachit, Y_train_predict))
+    print("f1 score", f1_sc)
+
+    return accuracy_score(Y_train_rachit, Y_train_predict)
+
+SVMModel()
