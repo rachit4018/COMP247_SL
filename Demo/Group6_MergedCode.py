@@ -242,8 +242,10 @@ print("Classification Report of NN:-\n ",
 print('-------------------------')
 
 
+# =============================================================================
+# Support Vector Machine - Rachit Pandya - 301198260
+# =============================================================================
 print('-------------- Support Vector Machine -----------')
-# Rachit Pandya - 301198260
 
 imp = SimpleImputer(missing_values=np.nan, strategy='median')
 scaler = StandardScaler()
